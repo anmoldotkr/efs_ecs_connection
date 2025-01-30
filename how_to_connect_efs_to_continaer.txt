@@ -1,0 +1,125 @@
+To connect your EFS file system to a running container (or when a new container is launched), you need to follow these steps:
+
+1. **Create IAM Permissions for EFS**:
+   - Create an IAM role with the necessary permissions to allow Amazon ECS tasks to access the EFS file system.
+
+2. **Create a New Task Definition**:
+   - Update the task definition to mount the EFS file system to the container.
+
+3. **Update the ECS Service**:
+   - Update the ECS service to use the new task definition.
+
+Below is a step-by-step guide to achieve this:
+
+---
+
+### **Step 1: Create IAM Permissions for EFS**
+
+Create an IAM role that allows your ECS tasks to access the EFS file system.
+
+#### IAM Role Policy Example:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientWrite",
+        "elasticfilesystem:ClientRootAccess"
+      ],
+      "Resource": "arn:aws:elasticfilesystem:region:account-id:file-system/file-system-id"
+    }
+  ]
+}
+```
+
+#### Steps:
+1. Go to the **IAM Console**.
+2. Create a new role for ECS tasks.
+3. Attach the above policy to the role.
+4. Note the role ARN for use in the task definition.
+
+---
+
+### **Step 2: Create a New Task Definition**
+
+Update your ECS task definition to mount the EFS file system.
+
+#### Task Definition Example:
+```json
+{
+  "family": "my-task-definition",
+  "networkMode": "awsvpc",
+  "executionRoleArn": "arn:aws:iam::account-id:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "my-container",
+      "image": "my-container-image",
+      "memory": 512,
+      "cpu": 256,
+      "essential": true,
+      "mountPoints": [
+        {
+          "sourceVolume": "efs-volume",
+          "containerPath": "/mnt/efs"
+        }
+      ]
+    }
+  ],
+  "volumes": [
+    {
+      "name": "efs-volume",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-xxxxxxxx",
+        "rootDirectory": "/my-specific-directory",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "accessPointId": "fsap-xxxxxxxx",
+          "iam": "ENABLED"
+        }
+      }
+    }
+  ]
+}
+```
+
+#### Steps:
+1. Go to the **ECS Console**.
+2. Select **Task Definitions** and create a new revision of your task definition.
+3. Under the **Volumes** section, add a new volume:
+   - Name: `efs-volume`
+   - Volume Type: **EFS**
+   - File System ID: Enter your EFS file system ID.
+   - Root Directory: Enter `/my-specific-directory` (or your desired path).
+   - Access Point ID: Enter your EFS access point ID.
+   - Enable IAM authorization.
+4. Under the **Container Definitions** section, add a mount point:
+   - Source Volume: `efs-volume`
+   - Container Path: `/mnt/efs` (or your desired path inside the container).
+5. Save the task definition.
+
+---
+
+### **Step 3: Update the ECS Service**
+
+Update your ECS service to use the new task definition.
+
+#### Steps:
+1. Go to the **ECS Console**.
+2. Select the cluster and service you want to update.
+3. Click **Update Service**.
+4. Under **Task Definition**, select the new revision of the task definition you created.
+5. Click **Next** and complete the update process.
+
+---
+
+### **Summary of Steps**
+1. **IAM Role**: Create an IAM role with permissions to access EFS.
+2. **Task Definition**: Update the task definition to mount the EFS file system.
+3. **ECS Service**: Update the ECS service to use the new task definition.
+
+This will ensure that your running containers (or new containers) can access the EFS file system with the appropriate directory structure and permissions.
+
+Let me know if you need further clarification!
