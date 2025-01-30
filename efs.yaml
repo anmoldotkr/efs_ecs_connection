@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create an EFS file system with access points and environment, product, and service tags.
+
+Parameters:
+  Environment:
+    Type: String
+    Description: The environment (e.g., dev, test, prod).
+    AllowedValues:
+      - dev
+      - test
+      - prod
+    Default: dev
+
+  Product:
+    Type: String
+    Description: The product name (e.g., MyApp).
+    Default: MyApp
+
+  Service:
+    Type: String
+    Description: The service name (e.g., DataService).
+    Default: DataService
+
+  SubnetId1:
+    Type: AWS::EC2::Subnet::Id
+    Description: The first subnet ID for the EFS mount target.
+
+  SubnetId2:
+    Type: AWS::EC2::Subnet::Id
+    Description: The second subnet ID for the EFS mount target.
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: The security group ID for the EFS mount target.
+
+Resources:
+  MyEFSFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+      Encrypted: true
+      LifecyclePolicies:
+        - TransitionToIA: AFTER_30_DAYS
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub ${Product}-${Environment}-EFS
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Product
+          Value: !Ref Product
+        - Key: Service
+          Value: !Ref Service
+
+  MyEFSMountTarget1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref MyEFSFileSystem
+      SubnetId: !Ref SubnetId1
+      SecurityGroups:
+        - !Ref SecurityGroupId
+
+  MyEFSMountTarget2:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref MyEFSFileSystem
+      SubnetId: !Ref SubnetId2
+      SecurityGroups:
+        - !Ref SecurityGroupId
+
+  MyEFSAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref MyEFSFileSystem
+      PosixUser:
+        Uid: "1000"
+        Gid: "1000"
+      RootDirectory:
+        CreationInfo:
+          OwnerUid: "1000"
+          OwnerGid: "1000"
+          Permissions: "0755"
+        Path: "/my-specific-directory" # Replace with your desired directory path
+      AccessPointTags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Product
+          Value: !Ref Product
+        - Key: Service
+          Value: !Ref Service
+
+Outputs:
+  EFSFileSystemId:
+    Description: The ID of the EFS file system
+    Value: !Ref MyEFSFileSystem
+
+  EFSAccessPointId:
+    Description: The ID of the EFS access point
+    Value: !Ref MyEFSAccessPoint
